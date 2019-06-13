@@ -78,7 +78,7 @@ bool NTPClient::forceUpdate() {
   } while (cb == 0);
 
   this->_lastUpdate = millis() - (10 * (timeout + 1)); // Account for delay in reading the time
-
+  this->_lastRequest = 0; // no outstanding request
   this->_udp->read(this->_packetBuffer, NTP_PACKET_SIZE);
 
   unsigned long highWord = word(this->_packetBuffer[40], this->_packetBuffer[41]);
@@ -88,6 +88,10 @@ bool NTPClient::forceUpdate() {
   unsigned long secsSince1900 = highWord << 16 | lowWord;
 
   this->_currentEpoc = secsSince1900 - SEVENZYYEARS;
+
+  highWord = word(this->_packetBuffer[44], this->_packetBuffer[45]);
+  lowWord = word(this->_packetBuffer[46], this->_packetBuffer[47]);
+  this->_currentFraction = highWord << 16 | lowWord;
 
   return true;
 }
@@ -105,6 +109,18 @@ unsigned long NTPClient::getEpochTime() const {
   return this->_timeOffset + // User offset
          this->_currentEpoc + // Epoc returned by the NTP server
          ((millis() - this->_lastUpdate) / 1000); // Time since last update
+}
+
+unsigned long long NTPClient::getEpochMillis() {
+  unsigned long long epoch;
+
+  epoch = this->_timeOffset;                     // user offset
+  epoch += _currentEpoc;                         // last time returned via server
+  epoch *= 1000;                                 // convert to millis
+  epoch += _currentFraction / FRACTIONSPERMILLI; // add the fraction from the server
+  epoch += millis() - this->_lastUpdate;         // add the millis that have passed since the last update
+
+  return epoch;
 }
 
 int NTPClient::getDay() const {
@@ -172,4 +188,7 @@ void NTPClient::sendNTPPacket() {
   this->_udp->beginPacket(this->_poolServerName, 123); //NTP requests are to port 123
   this->_udp->write(this->_packetBuffer, NTP_PACKET_SIZE);
   this->_udp->endPacket();
+
+  this->_lastRequest = millis();
+
 }

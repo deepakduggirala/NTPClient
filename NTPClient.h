@@ -5,6 +5,7 @@
 #include <Udp.h>
 
 #define SEVENZYYEARS 2208988800UL
+#define FRACTIONSPERMILLI (4294967UL)
 #define NTP_PACKET_SIZE 48
 #define NTP_DEFAULT_LOCAL_PORT 1337
 
@@ -20,7 +21,10 @@ class NTPClient {
     unsigned long _updateInterval = 60000;  // In ms
 
     unsigned long _currentEpoc    = 0;      // In s
+    unsigned long _currentFraction = 0;     // In 1/(2^32) s
     unsigned long _lastUpdate     = 0;      // In ms
+    unsigned long _lastRequest    = 0;      // IN ms
+
 
     byte          _packetBuffer[NTP_PACKET_SIZE];
 
@@ -90,6 +94,11 @@ class NTPClient {
      * @return time in seconds since Jan. 1, 1970
      */
     unsigned long getEpochTime() const;
+
+    /**
+     * @return time in milliseconds since Jan. 1, 1970
+     */
+    unsigned long long getEpochMillis();
 
     /**
      * Stops the underlying UDP client
